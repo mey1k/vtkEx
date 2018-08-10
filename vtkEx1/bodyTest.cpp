@@ -56,8 +56,32 @@
 #include <vtkDataArray.h>
 #include <vtkVector.h>
 #include <vtkVectorOperators.h>
+#include <vtkBrownianPoints.h>
+#include <vtkAssignAttribute.h>
 
 //#include <vtkCollisionDetectionFilter>
+
+#include <vtkGlyph3D.h>
+#include <vtkArrowSource.h>
+static void MakeGlyphs(vtkPolyData *src, double size, vtkGlyph3D *glyph);
+
+void MakeGlyphs(vtkPolyData *src, double size, vtkGlyph3D *glyph)
+{
+	// Source for the glyph filter
+	vtkSmartPointer<vtkArrowSource> arrow =
+		vtkSmartPointer<vtkArrowSource>::New();
+	arrow->SetTipResolution(16);
+	arrow->SetTipLength(.3);
+	arrow->SetTipRadius(.1);
+
+	glyph->SetSourceConnection(arrow->GetOutputPort());
+	glyph->SetInputData(src);
+	glyph->SetVectorModeToUseVector();
+	glyph->SetScaleModeToScaleByVector();
+	glyph->SetScaleFactor(size);
+	glyph->OrientOn();
+	glyph->Update();
+}
 
 // Define interaction style
 class KeyPressInteractorStyle : public vtkInteractorStyleTrackballCamera
@@ -1572,21 +1596,22 @@ int main(int, char *[])
 	std::cerr << "number of UpdataData Points :" << TmpPolydata->GetPoints()->GetNumberOfPoints() << std::endl;
 	std::cerr << "number of UpdataData Normal :" << ClipDataNormalArray->GetNumberOfTuples() << std::endl;
 
-	//for (int i = 0; i < TmpPolydata->GetPoints()->GetNumberOfPoints(); i++)
-	//{
-	//	//vtkP(vtkSphereSource, testSource);
-	//	vtkVector3d Point(TmpPolydata->GetPoints()->GetPoint(i));
-	//	vtkVector3d NormalV(ClipDataNormalArray->GetTuple(i));
+	for (int i = 0; i < TmpPolydata->GetPoints()->GetNumberOfPoints(); i++)
+	{
+		//vtkP(vtkSphereSource, testSource);
+		vtkVector3d Point(TmpPolydata->GetPoints()->GetPoint(i));
+		vtkVector3d NormalV(ClipDataNormalArray->GetTuple(i));
 
-	//	NormalV = NormalV * 0.4;
-	//	Point = Point + NormalV;
+		NormalV = NormalV * 0.4;
+		
+		Point = Point + NormalV;
 
-	//	TmpPolydata->GetPoints()->SetPoint(i, Point.GetData());
-	//}
+		TmpPolydata->GetPoints()->SetPoint(i, Point.GetData());
+	}
 
 	//### Create isosurface###
 	vtkSmartPointer<vtkImplicitModeller> implicitModeller = vtkImplicitModeller::New();
-	implicitModeller->SetSampleDimensions(50, 50, 50);
+	implicitModeller->SetSampleDimensions(30, 30, 30);
 	implicitModeller->SetInputData(TmpPolydata);
 	implicitModeller->AdjustBoundsOn();
 	implicitModeller->SetAdjustDistance(.1); // Adjust by 10%
@@ -1594,15 +1619,14 @@ int main(int, char *[])
 
 	double bounds[6];
 	TmpPolydata->GetBounds(bounds);
-	//implicitModeller->GetOutput()->GetBounds(bounds);
 	double xrange = bounds[1] - bounds[0];
 
 	// Create the 0 isosurface
 	vtkSmartPointer<vtkContourFilter> contourFilter =
 		vtkSmartPointer<vtkContourFilter>::New();
 	contourFilter->SetInputConnection(implicitModeller->GetOutputPort());
-	contourFilter->SetValue(0, xrange / 30.0); // 30% of xrange
-
+	//contourFilter->SetValue(0, xrange / 10.0); // 30% of xrange
+	contourFilter->SetValue(0, xrange/20.0);
 
 	//### clip under  - 1###
 	//vtkReverseSense* reverseIN = vtkReverseSense::New();;
@@ -1633,6 +1657,35 @@ int main(int, char *[])
 
 	//### clip under - 2 ###
 
+	// Generate normals
+	vtkSmartPointer<vtkPolyDataNormals> normalGenerator = vtkSmartPointer<vtkPolyDataNormals>::New();
+#if VTK_MAJOR_VERSION <= 5
+	normalGenerator->SetInput(polydata);
+#else
+	normalGenerator->SetInputConnection(contourFilter->GetOutputPort());
+#endif
+	normalGenerator->ComputePointNormalsOn();
+	normalGenerator->ComputeCellNormalsOff();
+	normalGenerator->Update();
+
+	vtkSmartPointer<vtkArrowSource> arrowSource =
+		vtkSmartPointer<vtkArrowSource>::New();
+
+	vtkSmartPointer<vtkGlyph3D> glyph3D =
+		vtkSmartPointer<vtkGlyph3D>::New();
+	glyph3D->SetSourceConnection(arrowSource->GetOutputPort());
+	glyph3D->SetInputConnection(normalGenerator->GetOutputPort());
+	glyph3D->SetScaleFactor(.5);
+
+	// Create a mapper and actor for glyphs
+	vtkSmartPointer<vtkPolyDataMapper> glyphMapper =
+		vtkSmartPointer<vtkPolyDataMapper>::New();
+	glyphMapper->SetInputConnection(glyph3D->GetOutputPort());
+
+	vtkSmartPointer<vtkActor> glyphActor =
+		vtkSmartPointer<vtkActor>::New();
+	glyphActor->GetProperty()->SetColor(0.89, 0.81, 0.34); // banana
+	glyphActor->SetMapper(glyphMapper);
 
 
 	//### Visualize ###
@@ -1649,6 +1702,8 @@ int main(int, char *[])
 		vtkSmartPointer<vtkPolyDataMapper>::New();
 	//inputMapper->SetInputData(TmpPolydata);
 	inputMapper->SetInputConnection(contourFilter->GetOutputPort());
+
+	//inputMapper->SetInputData(ClipDataNormalArray->GetData());
 
 	vtkSmartPointer<vtkActor> inputActor =
 		vtkSmartPointer<vtkActor>::New();
@@ -1694,7 +1749,9 @@ int main(int, char *[])
 	// Add the sphere to the left and the cube to the right
 	leftRenderer->AddActor(lineActor);
 	leftRenderer->AddActor(inputActor);
-	
+ 	leftRenderer->AddActor(glyphActor);
+
+
 	rightRenderer->AddActor(lineActor);
 	rightRenderer->AddActor(decimatedActor);
 	rightRenderer->AddActor(inputActor);
