@@ -63,6 +63,13 @@
 
 #include <vtkGlyph3D.h>
 #include <vtkArrowSource.h>
+#include <vtkPlane.h>
+#include <vtkPlaneCollection.h>
+#include <vtkClipClosedSurface.h>
+#include <vtkContourTriangulator.h>
+#include <vtkVoxelModeller.h>
+#include <vtkClipDataSet.h>
+#include <vtkGeometryFilter.h>
 static void MakeGlyphs(vtkPolyData *src, double size, vtkGlyph3D *glyph);
 
 void MakeGlyphs(vtkPolyData *src, double size, vtkGlyph3D *glyph)
@@ -1596,37 +1603,64 @@ int main(int, char *[])
 	std::cerr << "number of UpdataData Points :" << TmpPolydata->GetPoints()->GetNumberOfPoints() << std::endl;
 	std::cerr << "number of UpdataData Normal :" << ClipDataNormalArray->GetNumberOfTuples() << std::endl;
 
-	for (int i = 0; i < TmpPolydata->GetPoints()->GetNumberOfPoints(); i++)
-	{
-		//vtkP(vtkSphereSource, testSource);
-		vtkVector3d Point(TmpPolydata->GetPoints()->GetPoint(i));
-		vtkVector3d NormalV(ClipDataNormalArray->GetTuple(i));
+	//for (int i = 0; i < TmpPolydata->GetPoints()->GetNumberOfPoints(); i++)
+	//{
+	//	//vtkP(vtkSphereSource, testSource);
+	//	vtkVector3d Point(TmpPolydata->GetPoints()->GetPoint(i));
+	//	vtkVector3d NormalV(ClipDataNormalArray->GetTuple(i));
 
-		NormalV = NormalV * 0.4;
-		
-		Point = Point + NormalV;
+	//	double dir = (NormalV[1] - NormalV[0]) * (NormalV[2] - NormalV[0]);
 
-		TmpPolydata->GetPoints()->SetPoint(i, Point.GetData());
-	}
+	//	if (dir < 0)
+	//	{
+	//		double nd[3];
+	//		nd[0] = 0;
+	//		nd[1] = 0;
+	//		nd[2] = 0;
+
+	//		ClipDataNormalArray->SetTuple(i, nd);
+
+	//		vtkVector3d NormalV2(ClipDataNormalArray->GetTuple(i));
+
+	//		std::cout << NormalV << ": " << dir << std::endl;
+	//		std::cout << NormalV2 << std::endl;
+	//	}
+	//}
+
+	//TmpPolydata->GetPointData()->SetNormals(ClipDataNormalArray);
 
 	//### Create isosurface###
+	double bounds[6];
+	TmpPolydata->GetBounds(bounds);
+	double xrange = bounds[1] - bounds[0];
+
+	for (unsigned int i = 0; i < 6; i += 2)
+	{
+		double range = bounds[i + 1] - bounds[i];
+		bounds[i] = bounds[i] - .1 * range;
+		bounds[i + 1] = bounds[i + 1] + .1 * range;
+	}
+
 	vtkSmartPointer<vtkImplicitModeller> implicitModeller = vtkImplicitModeller::New();
 	implicitModeller->SetSampleDimensions(30, 30, 30);
+	implicitModeller->SetModelBounds(bounds);
 	implicitModeller->SetInputData(TmpPolydata);
 	implicitModeller->AdjustBoundsOn();
 	implicitModeller->SetAdjustDistance(.1); // Adjust by 10%
 	implicitModeller->SetMaximumDistance(.1);
 
-	double bounds[6];
-	TmpPolydata->GetBounds(bounds);
-	double xrange = bounds[1] - bounds[0];
+	std::cout << bounds[0] << " : " << bounds[1] << " : " << bounds[2] << " : " << bounds[3] << " : " << bounds[4] << " : " << bounds[5] << " : " << std::endl;
 
 	// Create the 0 isosurface
 	vtkSmartPointer<vtkContourFilter> contourFilter =
 		vtkSmartPointer<vtkContourFilter>::New();
 	contourFilter->SetInputConnection(implicitModeller->GetOutputPort());
-	//contourFilter->SetValue(0, xrange / 10.0); // 30% of xrange
-	contourFilter->SetValue(0, xrange/20.0);
+	//contourFilter->SetValue(0, xrange / 10.0); // 30% of xrange	
+	//contourFilter->SetValue(0, xrange/20.0);
+
+	contourFilter->SetValue(0, xrange / 20.0);
+	contourFilter->Update();
+
 
 	//### clip under  - 1###
 	//vtkReverseSense* reverseIN = vtkReverseSense::New();;
@@ -1656,36 +1690,78 @@ int main(int, char *[])
 	//booleanStep1->Update();
 
 	//### clip under - 2 ###
+	//vtkSmartPointer<vtkWarpTo> warpTo =
+	//	vtkSmartPointer<vtkWarpTo>::New();
+	//warpTo->SetInputConnection(normals->GetOutputPort());
+	//warpTo->SetPosition(0, 0, 0);
+	//warpTo->SetScaleFactor(0);
+	//warpTo->AbsoluteOn();
 
-	// Generate normals
-	vtkSmartPointer<vtkPolyDataNormals> normalGenerator = vtkSmartPointer<vtkPolyDataNormals>::New();
-#if VTK_MAJOR_VERSION <= 5
-	normalGenerator->SetInput(polydata);
-#else
-	normalGenerator->SetInputConnection(contourFilter->GetOutputPort());
-#endif
-	normalGenerator->ComputePointNormalsOn();
-	normalGenerator->ComputeCellNormalsOff();
-	normalGenerator->Update();
+	//vtkBooleanOperationPolyDataFilter* booleanOperation =
+	//	vtkBooleanOperationPolyDataFilter::New();
+	//booleanOperation->SetOperation(vtkBooleanOperationPolyDataFilter::VTK_UNION);
+	//booleanOperation->AddInputConnection(0, contourFilter->GetOutputPort());
+	//booleanOperation->SetInputData(1, TmpPolydata);
+	////booleanOperation->AddInputConnection(1, TmpPolydata->GetOutputPort());
+	//booleanOperation->Update();
+	//vtkSmartPointer<vtkBox> box = vtkSmartPointer<vtkBox>::New();
+	//box->SetBounds(bounds[0],bounds[1],bounds[2],bounds[3],bounds[4],bounds[5]); // set the bounds of interest.
 
-	vtkSmartPointer<vtkArrowSource> arrowSource =
-		vtkSmartPointer<vtkArrowSource>::New();
+	//vtkSmartPointer<vtkClipDataSet> clipper = vtkSmartPointer<vtkClipDataSet>::New();
+	//clipper->SetInputConnection(implicitModeller->GetOutputPort()); // set to your data producer
+	//clipper->SetClipFunction(box.GetPointer());
 
-	vtkSmartPointer<vtkGlyph3D> glyph3D =
-		vtkSmartPointer<vtkGlyph3D>::New();
-	glyph3D->SetSourceConnection(arrowSource->GetOutputPort());
-	glyph3D->SetInputConnection(normalGenerator->GetOutputPort());
-	glyph3D->SetScaleFactor(.5);
+	//// since clipper will produce an unstructured grid, apply the following to
+	//// extract a  polydata from it.
+	//vtkSmartPointer<vtkGeometryFilter> geomFilter = vtkSmartPointer<vtkGeometryFilter>::New();
+	//geomFilter->SetInputConnection(clipper->GetOutputPort());
 
-	// Create a mapper and actor for glyphs
-	vtkSmartPointer<vtkPolyDataMapper> glyphMapper =
-		vtkSmartPointer<vtkPolyDataMapper>::New();
-	glyphMapper->SetInputConnection(glyph3D->GetOutputPort());
+	//### clip under - 3 ###
+	//vtkSmartPointer<vtkBox> box = vtkSmartPointer<vtkBox>::New();
+	//box->SetBounds(bounds[0],bounds[1],bounds[2],bounds[3],bounds[4],bounds[5]);
 
-	vtkSmartPointer<vtkActor> glyphActor =
-		vtkSmartPointer<vtkActor>::New();
-	glyphActor->GetProperty()->SetColor(0.89, 0.81, 0.34); // banana
-	glyphActor->SetMapper(glyphMapper);
+	//vtkSmartPointer<vtkClipDataSet> clipper = vtkSmartPointer<vtkClipDataSet>::New();
+	//clipper->SetInputData(TmpPolydata); // set to your data producer
+	//clipper->SetClipFunction(box.GetPointer());
+	//clipper->Update();
+
+	//// since clipper will produce an unstructured grid, apply the following to
+	//// extract a  polydata from it.
+	//vtkSmartPointer<vtkGeometryFilter> geomFilter = vtkSmartPointer<vtkGeometryFilter>::New();
+	//geomFilter->SetInputConnection(clipper->GetOutputPort());
+
+
+
+
+//	// Generate normals
+//	vtkSmartPointer<vtkPolyDataNormals> normalGenerator = vtkSmartPointer<vtkPolyDataNormals>::New();
+//#if VTK_MAJOR_VERSION <= 5
+//	normalGenerator->SetInput(polydata);
+//#else
+//	normalGenerator->SetInputConnection(contourFilter->GetOutputPort());
+//#endif
+//	normalGenerator->ComputePointNormalsOn();
+//	normalGenerator->ComputeCellNormalsOff();
+//	normalGenerator->Update();
+//
+//	vtkSmartPointer<vtkArrowSource> arrowSource =
+//		vtkSmartPointer<vtkArrowSource>::New();
+//
+//	vtkSmartPointer<vtkGlyph3D> glyph3D =
+//		vtkSmartPointer<vtkGlyph3D>::New();
+//	glyph3D->SetSourceConnection(arrowSource->GetOutputPort());
+//	glyph3D->SetInputConnection(normalGenerator->GetOutputPort());
+//	glyph3D->SetScaleFactor(.5);
+//
+//	// Create a mapper and actor for glyphs
+//	vtkSmartPointer<vtkPolyDataMapper> glyphMapper =
+//		vtkSmartPointer<vtkPolyDataMapper>::New();
+//	glyphMapper->SetInputConnection(glyph3D->GetOutputPort());
+//
+//	vtkSmartPointer<vtkActor> glyphActor =
+//		vtkSmartPointer<vtkActor>::New();
+//	glyphActor->GetProperty()->SetColor(0.89, 0.81, 0.34); // banana
+//	glyphActor->SetMapper(glyphMapper);
 
 
 	//### Visualize ###
@@ -1749,7 +1825,7 @@ int main(int, char *[])
 	// Add the sphere to the left and the cube to the right
 	leftRenderer->AddActor(lineActor);
 	leftRenderer->AddActor(inputActor);
- 	leftRenderer->AddActor(glyphActor);
+ 	//leftRenderer->AddActor(glyphActor);
 
 
 	rightRenderer->AddActor(lineActor);
@@ -1782,3 +1858,4 @@ int main(int, char *[])
 
 	return EXIT_SUCCESS;
 }
+

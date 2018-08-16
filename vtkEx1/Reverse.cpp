@@ -39,6 +39,7 @@ int main(int, char *[])
 	for (unsigned int i = 0; i < 5; i++)
 	{
 		double pN[3];
+		if(pN<0)
 		reversedNormals->GetTuple(i, pN);
 		std::cout << "Reversed normal " << i << ": " << pN[0] << " " << pN[1] << " " << pN[2] << std::endl;
 	}
