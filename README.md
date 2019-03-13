@@ -1,6 +1,6 @@
 # Project Title
 
-vtk 라이브러리  
+vtk 예제  
 
 ## Getting Started
 
