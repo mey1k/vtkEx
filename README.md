@@ -65,7 +65,7 @@ Add additional notes about how to deploy this on a live system
 
 ## Authors
 
-* **kim Min-Jun** - *Initial work* - (https://github.com/mey1k)
+* **kim Min-Jun** - *Initial work* - [Min-jun](https://github.com/mey1k)
 
 See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
 
