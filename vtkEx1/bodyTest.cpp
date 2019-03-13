@@ -70,6 +70,8 @@
 #include <vtkVoxelModeller.h>
 #include <vtkClipDataSet.h>
 #include <vtkGeometryFilter.h>
+#include <vtkTransformFilter.h>
+#include <vtkFloatArray.h>
 static void MakeGlyphs(vtkPolyData *src, double size, vtkGlyph3D *glyph);
 
 void MakeGlyphs(vtkPolyData *src, double size, vtkGlyph3D *glyph)
@@ -1629,37 +1631,56 @@ int main(int, char *[])
 
 	//TmpPolydata->GetPointData()->SetNormals(ClipDataNormalArray);
 
+	//###warp, transform
+	// Setup scales
+	//vtkSmartPointer<vtkFloatArray> scales =
+	//	vtkSmartPointer<vtkFloatArray>::New();
+	//scales->SetName("scales");
+
+	//scales->InsertNextValue(1.2);
+
+	//// Combine into a polydata
+	//TmpPolydata->GetPointData()->SetScalars(scales);
+
+	//vtkSmartPointer<vtkGlyph3D> glyph3D =
+	//	vtkSmartPointer<vtkGlyph3D>::New();
+	//glyph3D->SetScaleModeToScaleByScalar();
+	////glyph3D->SetSourceConnection(TmpPolydata->GetOutputPort());
+	//glyph3D->SetInputData(TmpPolydata);
+	//glyph3D->Update();
+
+
 	//### Create isosurface###
-	double bounds[6];
-	TmpPolydata->GetBounds(bounds);
-	double xrange = bounds[1] - bounds[0];
+	//double bounds[6];
+	//TmpPolydata->GetBounds(bounds);
+	//double xrange = bounds[1] - bounds[0];
 
-	for (unsigned int i = 0; i < 6; i += 2)
-	{
-		double range = bounds[i + 1] - bounds[i];
-		bounds[i] = bounds[i] - .1 * range;
-		bounds[i + 1] = bounds[i + 1] + .1 * range;
-	}
+	//for (unsigned int i = 0; i < 6; i += 2)
+	//{
+	//	double range = bounds[i + 1] - bounds[i];
+	//	bounds[i] = bounds[i] - .1 * range;
+	//	bounds[i + 1] = bounds[i + 1] + .1 * range;
+	//}
 
-	vtkSmartPointer<vtkImplicitModeller> implicitModeller = vtkImplicitModeller::New();
-	implicitModeller->SetSampleDimensions(30, 30, 30);
-	implicitModeller->SetModelBounds(bounds);
-	implicitModeller->SetInputData(TmpPolydata);
-	implicitModeller->AdjustBoundsOn();
-	implicitModeller->SetAdjustDistance(.1); // Adjust by 10%
-	implicitModeller->SetMaximumDistance(.1);
+	//vtkSmartPointer<vtkImplicitModeller> implicitModeller = vtkImplicitModeller::New();
+	//implicitModeller->SetSampleDimensions(30, 30, 30);
+	//implicitModeller->SetModelBounds(bounds);
+	//implicitModeller->SetInputData(TmpPolydata);
+	//implicitModeller->AdjustBoundsOn();
+	//implicitModeller->SetAdjustDistance(.1); // Adjust by 10%
+	//implicitModeller->SetMaximumDistance(.1);
 
-	std::cout << bounds[0] << " : " << bounds[1] << " : " << bounds[2] << " : " << bounds[3] << " : " << bounds[4] << " : " << bounds[5] << " : " << std::endl;
+	//std::cout << bounds[0] << " : " << bounds[1] << " : " << bounds[2] << " : " << bounds[3] << " : " << bounds[4] << " : " << bounds[5] << " : " << std::endl;
 
-	// Create the 0 isosurface
-	vtkSmartPointer<vtkContourFilter> contourFilter =
-		vtkSmartPointer<vtkContourFilter>::New();
-	contourFilter->SetInputConnection(implicitModeller->GetOutputPort());
-	//contourFilter->SetValue(0, xrange / 10.0); // 30% of xrange	
-	//contourFilter->SetValue(0, xrange/20.0);
+	//// Create the 0 isosurface
+	//vtkSmartPointer<vtkContourFilter> contourFilter =
+	//	vtkSmartPointer<vtkContourFilter>::New();
+	//contourFilter->SetInputConnection(implicitModeller->GetOutputPort());
+	////contourFilter->SetValue(0, xrange / 10.0); // 30% of xrange	
+	////contourFilter->SetValue(0, xrange/20.0);
 
-	contourFilter->SetValue(0, xrange / 20.0);
-	contourFilter->Update();
+	//contourFilter->SetValue(0, xrange / 20.0);
+	//contourFilter->Update();
 
 
 	//### clip under  - 1###
@@ -1776,8 +1797,8 @@ int main(int, char *[])
 
 	vtkSmartPointer<vtkPolyDataMapper> inputMapper =
 		vtkSmartPointer<vtkPolyDataMapper>::New();
-	//inputMapper->SetInputData(TmpPolydata);
-	inputMapper->SetInputConnection(contourFilter->GetOutputPort());
+	inputMapper->SetInputData(TmpPolydata);
+	//inputMapper->SetInputConnection(reader->GetOutputPort());
 
 	//inputMapper->SetInputData(ClipDataNormalArray->GetData());
 

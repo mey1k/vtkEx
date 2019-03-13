@@ -5,44 +5,65 @@
 #include <vtkPointData.h>
 #include <vtkReverseSense.h>
 #include <vtkFloatArray.h>
+#include <vtkSTLReader.h>
+#include <vtkSTLWriter.h>
+#include <vtkReflectionFilter.h>
+#include <vtkDataSetMapper.h>
+#include <vtkActor.h>
+#include <vtkRenderWindow.h>
+#include <vtkRenderer.h>
+#include <vtkRenderWindowInteractor.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkProperty.h>
+#include <vtkTransform.h>
+#include <vtkTransformPolyDataFilter.h>
 
 int main(int, char *[])
 {
-	vtkSmartPointer<vtkSphereSource> sphereSource =
+	/*vtkSmartPointer<vtkSphereSource> sphereSource =
 		vtkSmartPointer<vtkSphereSource>::New();
-	sphereSource->Update();
+	sphereSource->Update();*/
 
-	vtkSmartPointer<vtkFloatArray> pointNormals =
-		vtkFloatArray::SafeDownCast(sphereSource->GetOutput()->GetPointData()->GetNormals());
+	const char* lpszPathName2 = { "D:\\Project\\SurgicalGuide\\Doc\\TechnicalReview\\boolean\\SampleData\\sleeve.stl" };
+	vtkSmartPointer<vtkSTLReader> reader =
+		vtkSmartPointer<vtkSTLReader>::New();
+	reader->SetFileName(lpszPathName2);
+	reader->Update();
 
-	std::cout << std::endl << "Normals: " << std::endl;
-	// Display the first few normals
-	for (unsigned int i = 0; i < 5; i++)
-	{
-		double pN[3];
-		pointNormals->GetTuple(i, pN);
-		std::cout << "Point normal " << i << ": " << pN[0] << " " << pN[1] << " " << pN[2] << std::endl;
-	}
+	vtkSmartPointer<vtkPolyData> mpSleevePolydata;
+	mpSleevePolydata = reader->GetOutput();
 
-	vtkSmartPointer<vtkReverseSense> reverseSense =
-		vtkSmartPointer<vtkReverseSense>::New();
-	reverseSense->SetInputConnection(sphereSource->GetOutputPort());
-	reverseSense->ReverseNormalsOn();
-	reverseSense->Update();
+	//mpSleevePolydata.Get()->
+
+	/*double originBounds[6];
+	mpSleevePolydata->GetBounds(originBounds);
+
+	double *dflip = new double[16]{
+		1.00000000,  0.00000000,  0.00000000,  0.00000000,
+		0.00000000,  -1.00000000,  0.00000000,  0.00000000,
+		0.00000000,  0.00000000,  -1.00000000, 15.00000000,
+		0.00000000,  0.00000000,  0.00000000,  1.00000000
+	};
+
+	vtkSmartPointer<vtkTransform> trans = vtkSmartPointer<vtkTransform>::New();
+	trans->SetMatrix(dflip);
+
+	vtkSmartPointer<vtkTransformPolyDataFilter> transformFilter =
+		vtkSmartPointer<vtkTransformPolyDataFilter>::New();
+	transformFilter->SetInputData(mpSleevePolydata);
+	transformFilter->SetTransform(trans);
+	transformFilter->Update();*/
 
 
-	vtkSmartPointer<vtkFloatArray> reversedNormals =
-		vtkFloatArray::SafeDownCast(reverseSense->GetOutput()->GetPointData()->GetNormals());
+	vtkSTLWriter* stlWriter2 = vtkSTLWriter::New();
+	const char* lpszPathName3 = { "D:\\flipSleeve1.stl" };
+	stlWriter2->SetFileName(lpszPathName3);
+	//stlWriter2->SetInputConnection(transformFilter->GetOutputPort());
 
-	std::cout << std::endl << "Reversed: " << std::endl;
-	// Display the first few normals to verify that they are flipped
-	for (unsigned int i = 0; i < 5; i++)
-	{
-		double pN[3];
-		if(pN<0)
-		reversedNormals->GetTuple(i, pN);
-		std::cout << "Reversed normal " << i << ": " << pN[0] << " " << pN[1] << " " << pN[2] << std::endl;
-	}
+	stlWriter2->SetInputData(mpSleevePolydata);
+
+	stlWriter2->Write();
+
 
 	return EXIT_SUCCESS;
 }

@@ -13,12 +13,15 @@
 #include <vtkRenderWindow.h>
 #include <vtkRenderer.h>
 
+#include <vtkSTLReader.h>
+#include <vtkDoubleArray.h>
+
 int main(int argc, char *argv[])
 {
 	vtkSmartPointer<vtkImageData> volume =
 		vtkSmartPointer<vtkImageData>::New();
 	double isoValue;
-	if (argc < 3)
+	/*if (argc < 3)
 	{
 		vtkSmartPointer<vtkSphereSource> sphereSource =
 			vtkSmartPointer<vtkSphereSource>::New();
@@ -47,14 +50,32 @@ int main(int argc, char *argv[])
 		volume->DeepCopy(voxelModeller->GetOutput());
 	}
 	else
-	{
-		vtkSmartPointer<vtkDICOMImageReader> reader =
+	{*/
+
+	const char* lpszPathName2 = { "D:\\target1.stl" };//{ "C:\\Users\\SeongHun\\OneDrive\\Project\\cowHead.vtp" };
+	vtkSmartPointer<vtkSTLReader> reader =
+		vtkSmartPointer<vtkSTLReader>::New();
+	reader->SetFileName(lpszPathName2);
+	reader->Update();
+	volume->DeepCopy(reader->GetOutput());
+
+	vtkSmartPointer<vtkDoubleArray> weights =
+		vtkSmartPointer<vtkDoubleArray>::New();
+	weights->SetNumberOfValues(2);
+	weights->SetValue(0, 1);
+	weights->SetValue(1, 2);
+
+	reader->GetOutput()->GetPointData()-
+	reader->GetPointData()->SetScalars(weights);
+
+	volume->DeepCopy(reader->GetOutput());
+		/*vtkSmartPointer<vtkDICOMImageReader> reader =
 			vtkSmartPointer<vtkDICOMImageReader>::New();
-		reader->SetDirectoryName(argv[1]);
+		reader->SetDirectoryName("D:\\_Data\\경북대치과 신효분 20171103\\Dicom Data");
 		reader->Update();
-		volume->DeepCopy(reader->GetOutput());
+		volume->DeepCopy(reader->GetOutput());*/
 		isoValue = 0.2;
-	}
+	//}
 
 	vtkSmartPointer<vtkMarchingCubes> surface =
 		vtkSmartPointer<vtkMarchingCubes>::New();
